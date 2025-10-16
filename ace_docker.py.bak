@@ -1,0 +1,63 @@
+﻿# ace_docker.py
+# Basit, güvenli docker helper: ensure_running, put_file, reload_nginx, backup/restore
+import docker, io, tarfile, os, time
+client = docker.from_env(timeout=60)
+
+def ensure_running(name, timeout=30):
+    try:
+        c = client.containers.get(name)
+    except docker.errors.NotFound:
+        raise RuntimeError(f"container {name} not found")
+    if c.status != "running":
+        c.start()
+        for _ in range(timeout):
+            c.reload()
+            if c.status == "running":
+                return c
+            time.sleep(1)
+        raise RuntimeError("container failed to start")
+    return c
+
+def _make_tar_bytes(src_path, arcname=None):
+    arcname = arcname or os.path.basename(src_path)
+    data = io.BytesIO()
+    with tarfile.open(fileobj=data, mode='w') as tf:
+        tf.add(src_path, arcname=arcname)
+    data.seek(0)
+    return data.getvalue()
+
+def put_file(container, src_path, dest_path, attempts=3):
+    base_dir = os.path.dirname(dest_path) or "/"
+    tar_data = _make_tar_bytes(src_path, arcname=os.path.basename(dest_path))
+    for i in range(attempts):
+        try:
+            container.put_archive(base_dir, tar_data)
+            return True
+        except Exception as e:
+            if i == attempts-1:
+                raise
+            time.sleep(1 + i)
+    return False
+
+def reload_nginx(container, attempts=3):
+    for i in range(attempts):
+        exec_res = container.exec_run(["nginx","-s","reload"], stdout=True, stderr=True)
+        if exec_res.exit_code == 0:
+            return True
+        if i == attempts-1:
+            raise RuntimeError(exec_res.output.decode('utf-8', errors='replace'))
+        time.sleep(1 + i)
+
+def backup_path(container, path_in_container, out_tar_path):
+    # get_archive returns (stream, stat)
+    bits, stat = container.get_archive(path_in_container)
+    with open(out_tar_path, "wb") as f:
+        for chunk in bits:
+            f.write(chunk)
+    return out_tar_path
+
+def restore_tar(container, target_dir, tar_path):
+    with open(tar_path, "rb") as f:
+        data = f.read()
+    container.put_archive(target_dir, data)
+    return True

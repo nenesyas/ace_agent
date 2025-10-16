@@ -1,0 +1,5 @@
+﻿ruff
+mypy
+pytest
+docker
+bandit

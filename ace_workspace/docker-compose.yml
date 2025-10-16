@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  ace_agent:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./ace_workspace:/app/ace_workspace
+    environment:
+      - OLLAMA_URL=http://localhost:11434/api/generate

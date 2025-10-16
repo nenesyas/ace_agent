@@ -1,0 +1,9 @@
+﻿# Python
+__pycache__/
+*.pyc
+.env
+# workspace secrets
+ace_workspace/secrets.json
+ace_workspace/*.db
+# virtualenv
+.venv/

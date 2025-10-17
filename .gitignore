@@ -7,3 +7,7 @@ ace_workspace/secrets.json
 ace_workspace/*.db
 # virtualenv
 .venv/
+
+# local backups
+ace_workspace/secrets.json.local.bak
+ace_workspace/sd_test.png
